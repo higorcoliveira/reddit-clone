@@ -1,6 +1,6 @@
 # Reddit Clone
 
-A simple system of posts and comments made with react and node
+A simple system of posts and comments made with react and node.
 
 # Database Configuration
 
