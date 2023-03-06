@@ -1,4 +1,4 @@
-import React, { useContext, useMemo } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getPost } from "../services/posts";
 import { useAsync } from "../hooks/useAsync";
@@ -12,20 +12,36 @@ export function usePost() {
 export function PostProvider({ children }) {
   const { id } = useParams();
   const { loading, error, value: post } = useAsync(() => getPost(id), [id]);
+  // state to store comments created by interface
+  const [comments, setComments] = useState([]);
+
   const commentsByParentId = useMemo(() => {
     // caching, only rerender when a comment was change
-    if (post?.comments == null) return [];
+    if (comments == null) return [];
     const group = {};
-    post.comments.forEach((comment) => {
+
+    comments.forEach((comment) => {
       group[comment.parentId] ||= [];
       group[comment.parentId].push(comment);
     });
 
     return group;
+  }, [comments]);
+
+  // refresh created comments
+  useEffect(() => {
+    if (post?.comments == null) return;
+    setComments(post.comments);
   }, [post?.comments]);
 
   function getReplies(parentId) {
     return commentsByParentId[parentId];
+  }
+
+  function createLocalComment(comment) {
+    setComments((prevComments) => {
+      return [comment, ...prevComments];
+    });
   }
 
   return (
@@ -34,6 +50,7 @@ export function PostProvider({ children }) {
         post: { id, ...post },
         rootComments: commentsByParentId[null], // comments with no replies
         getReplies,
+        createLocalComment,
       }}
     >
       {loading ? (
