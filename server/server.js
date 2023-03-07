@@ -88,6 +88,61 @@ app.post("/posts/:id/comments", async (req, res) => {
   );
 });
 
+app.put("/posts/:id/comments/:commentId", async (req, res) => {
+  if (req.body.message === "" || req.body.message == null) {
+    return res.send(app.httpErrors.badRequest("Write something!"));
+  }
+
+  const { userId } = await prisma.comment.findUnique({
+    where: { id: req.params.commentId },
+    select: { userId: true },
+  });
+
+  if (userId !== req.cookies.userId) {
+    return res.send(
+      app.httpErrors.unauthorized(
+        "You don't have permission to edit this message!"
+      )
+    );
+  }
+
+  // has a message and has permission
+  return await commitToDB(
+    prisma.comment.update({
+      where: {
+        id: req.params.commentId,
+      },
+      data: { message: req.body.message },
+      select: { message: true },
+    })
+  );
+});
+
+app.delete("/posts/:id/comments/:commentId", async (req, res) => {
+  const { userId } = await prisma.comment.findUnique({
+    where: { id: req.params.commentId },
+    select: { userId: true },
+  });
+
+  if (userId !== req.cookies.userId) {
+    return res.send(
+      app.httpErrors.unauthorized(
+        "You don't have permission to delete this message!"
+      )
+    );
+  }
+
+  // has a message and has permission
+  return await commitToDB(
+    prisma.comment.delete({
+      where: {
+        id: req.params.commentId,
+      },
+      select: { id: true },
+    })
+  );
+});
+
 // to treat errors
 async function commitToDB(promise) {
   const [error, data] = await app.to(promise);
