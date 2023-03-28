@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { IconButton } from "./IconButton";
-import { FaHeart, FaReply, FaEdit, FaTrash } from "react-icons/fa";
+import { FaHeart, FaRegHeart, FaReply, FaEdit, FaTrash } from "react-icons/fa";
 import { CommentList } from "./CommentList";
 import { CommentForm } from "./CommentForm";
 import { useAsyncFn } from "../hooks/useAsync";
@@ -10,6 +10,7 @@ import {
   createComment,
   updateComment,
   deleteComment,
+  toggleCommentLike,
 } from "../services/comments";
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -17,7 +18,14 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: "short",
 });
 
-export function Comment({ id, message, user, createdAt }) {
+export function Comment({
+  id,
+  message,
+  user,
+  createdAt,
+  likeCount,
+  likedByMe,
+}) {
   const [areChildrenHidden, setAreChildrenHidden] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -27,6 +35,7 @@ export function Comment({ id, message, user, createdAt }) {
     createLocalComment,
     updateLocalComment,
     deleteLocalComment,
+    toggleLocalCommentLike,
   } = usePost();
   const {
     loading,
@@ -43,8 +52,9 @@ export function Comment({ id, message, user, createdAt }) {
     errorDelete,
     execute: deleteCommentFn,
   } = useAsyncFn(deleteComment);
+  const toggleCommentLikeFn = useAsyncFn(toggleCommentLike);
   const childComments = getReplies(id);
-  // const currentUser = useUser(); // bug here
+  const currentUser = useUser();
 
   function onCommentReply(message) {
     return createCommentFn({ postId: post.id, message, parentId: id }).then(
@@ -68,6 +78,12 @@ export function Comment({ id, message, user, createdAt }) {
     );
   }
 
+  function onToggleCommentLike() {
+    return toggleCommentLikeFn
+      .execute({ id, postId: post.id })
+      .then(({ addLike }) => toggleLocalCommentLike(id, addLike));
+  }
+
   return (
     <>
       <div className="comment">
@@ -89,8 +105,13 @@ export function Comment({ id, message, user, createdAt }) {
           <div className="message">{message}</div>
         )}
         <div className="footer">
-          <IconButton Icon={FaHeart} aria-label="Like">
-            2
+          <IconButton
+            onClick={onToggleCommentLike}
+            disabled={toggleCommentLikeFn.loading}
+            Icon={likedByMe ? FaHeart : FaRegHeart}
+            aria-label={likedByMe ? "UnLike" : "Like"}
+          >
+            {likeCount}
           </IconButton>
           <IconButton
             onClick={() => setIsReplying((prev) => !prev)}
@@ -98,19 +119,23 @@ export function Comment({ id, message, user, createdAt }) {
             Icon={FaReply}
             aria-label={isReplying ? "Cancel Reply" : "Reply"}
           />
-          <IconButton
-            disabled={loadingDelete}
-            onClick={() => setIsEditing((prev) => !prev)}
-            isActive={isEditing}
-            Icon={FaEdit}
-            aria-label={isEditing ? "Cancel Edit" : "Edit"}
-          />
-          <IconButton
-            onClick={onCommentDelete}
-            Icon={FaTrash}
-            aria-label="Delete"
-            color="danger"
-          />
+          {user.id === currentUser.id && (
+            <>
+              <IconButton
+                disabled={loadingDelete}
+                onClick={() => setIsEditing((prev) => !prev)}
+                isActive={isEditing}
+                Icon={FaEdit}
+                aria-label={isEditing ? "Cancel Edit" : "Edit"}
+              />
+              <IconButton
+                onClick={onCommentDelete}
+                Icon={FaTrash}
+                aria-label="Delete"
+                color="danger"
+              />
+            </>
+          )}
         </div>
         {errorDelete && <div className="error-msg mt-1">{errorDelete}</div>}
       </div>
